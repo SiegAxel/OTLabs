@@ -1,5 +1,0 @@
-Defaulting to user installation because normal site-packages is not writeable
-Requirement already satisfied: bcrypt in C:\Users\Sieg\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages (5.0.0)
-
-[notice] A new release of pip is available: 26.0.1 -> 26.1
-[notice] To update, run: C:\Users\Sieg\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe -m pip install --upgrade pip

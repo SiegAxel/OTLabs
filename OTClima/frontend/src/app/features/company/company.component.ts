@@ -133,7 +133,7 @@ export class CompanyComponent implements OnInit {
   logoUrl(): string {
     const p = this.company()?.logo_path;
     if (!p) return '';
-    return `http://localhost:8000/uploads/${p.split('/uploads/').pop()}`;
+    return p;
   }
 
   save() {

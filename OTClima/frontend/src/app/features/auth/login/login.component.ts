@@ -75,8 +75,8 @@ import { AuthService } from '../../../core/auth/auth.service';
         <div class="demo-hint">
           <span class="material-icons">info</span>
           <div>
-            <strong>Demo:</strong> admin&#64;otclima.cl / demo1234<br>
-            <span class="text-xs">También: carlos&#64;otclima.cl (técnico)</span>
+            <strong>Demo:</strong> admin&#64;otlabs.local / ChangeMe-Admin-2026!<br>
+            <span class="text-xs">Login con correo y contraseña</span>
           </div>
         </div>
 
@@ -177,8 +177,8 @@ import { AuthService } from '../../../core/auth/auth.service';
 })
 export class LoginComponent {
   form = this.fb.group({
-    email:    ['admin@otclima.cl', [Validators.required, Validators.email]],
-    password: ['demo1234', Validators.required],
+    email:    ['admin@otlabs.local', [Validators.required, Validators.email]],
+    password: ['ChangeMe-Admin-2026!', Validators.required],
   });
   loading = signal(false);
   error   = signal('');
