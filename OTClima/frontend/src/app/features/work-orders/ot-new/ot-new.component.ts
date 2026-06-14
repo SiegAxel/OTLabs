@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageShellComponent } from '../../../shared/components/page-shell/page-shell.component';
 import { ApiService } from '../../../core/services/api.service';
+import { ClientsService } from '../../../core/services/clients.service';
 import { Client, User } from '../../../core/models';
 
 @Component({
@@ -40,7 +41,7 @@ import { Client, User } from '../../../core/models';
           <mat-form-field appearance="outline" class="span-2">
             <mat-label>Cliente</mat-label>
             <mat-select formControlName="client_id">
-              <mat-option *ngFor="let c of clients()" [value]="c.id">{{ c.name }}</mat-option>
+              <mat-option *ngFor="let c of clients()" [value]="c.id">{{ c.nombre }}</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -115,12 +116,16 @@ export class OtNewComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
+    private clientsService: ClientsService,
     private router: Router,
     private snack: MatSnackBar,
   ) {}
 
   ngOnInit() {
-    this.api.getClients().subscribe(c => this.clients.set(c));
+    this.clientsService.getClients().subscribe({
+      next: c => this.clients.set(c),
+      error: () => this.snack.open('Error al cargar clientes', '', { duration: 3000 }),
+    });
     this.api.getTechnicians().subscribe(t => this.technicians.set(t));
   }
 

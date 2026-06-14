@@ -76,7 +76,7 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
             </div>
             <h3 class="ot-title">{{ ot.title }}</h3>
             <div class="ot-client" *ngIf="ot.client">
-              <span class="material-icons">person</span> {{ ot.client.name }}
+              <span class="material-icons">person</span> {{ ot.client.nombre }}
             </div>
             <div class="ot-technician" *ngIf="ot.technician">
               <span class="material-icons">engineering</span> {{ ot.technician.name }}
@@ -202,7 +202,7 @@ export class OtListComponent implements OnInit {
       const q = this.searchQuery.toLowerCase();
       result = result.filter(o =>
         o.title.toLowerCase().includes(q) ||
-        o.client?.name.toLowerCase().includes(q)
+        o.client?.nombre.toLowerCase().includes(q)
       );
     }
     this.filtered.set(result);

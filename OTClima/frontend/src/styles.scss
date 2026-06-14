@@ -1,5 +1,3 @@
-@use '@angular/material' as mat;
-
 // ─── OTClima Design Tokens ───────────────────────────────────────────────────
 
 :root {
@@ -68,38 +66,6 @@
 }
 
 // ─── Material Theme ──────────────────────────────────────────────────────────
-
-$primary-palette: (
-  50: #F0F9FF, 100: #E0F2FE, 200: #BAE6FD, 300: #7DD3FC, 400: #38BDF8,
-  500: #0EA5E9, 600: #0284C7, 700: #0369A1, 800: #075985, 900: #0C4A6E,
-  contrast: (
-    50: rgba(0,0,0,.87), 100: rgba(0,0,0,.87), 200: rgba(0,0,0,.87),
-    300: rgba(0,0,0,.87), 400: rgba(0,0,0,.87), 500: white,
-    600: white, 700: white, 800: white, 900: white,
-  )
-);
-
-$accent-palette: (
-  50: #FFEDD5, 100: #FED7AA, 200: #FDBA74, 300: #FB923C, 400: #FB923C,
-  500: #F97316, 600: #EA580C, 700: #C2410C, 800: #9A3412, 900: #7C2D12,
-  contrast: (
-    50: rgba(0,0,0,.87), 100: rgba(0,0,0,.87), 200: rgba(0,0,0,.87),
-    300: rgba(0,0,0,.87), 400: rgba(0,0,0,.87), 500: white,
-    600: white, 700: white, 800: white, 900: white,
-  )
-);
-
-$otclima-primary: mat.define-palette($primary-palette, 500, 300, 700);
-$otclima-accent:  mat.define-palette($accent-palette, 500, 300, 700);
-$otclima-warn:    mat.define-palette(mat.$red-palette);
-
-$otclima-theme: mat.define-light-theme((
-  color: (primary: $otclima-primary, accent: $otclima-accent, warn: $otclima-warn),
-  typography: mat.define-typography-config($font-family: 'Inter, sans-serif'),
-  density: 0,
-));
-
-@include mat.all-component-themes($otclima-theme);
 
 // ─── Reset & Base ─────────────────────────────────────────────────────────────
 
@@ -259,7 +225,52 @@ a { color: var(--color-primary-600); text-decoration: none; }
 
 // ─── Material Overrides ──────────────────────────────────────────────────────
 
-.mat-mdc-dialog-container .mdc-dialog__surface { border-radius: var(--radius-lg) !important; }
+.cdk-overlay-container {
+  position: fixed;
+  z-index: 1000;
+}
+
+.cdk-overlay-container,
+.cdk-global-overlay-wrapper {
+  inset: 0;
+  pointer-events: none;
+}
+
+.cdk-global-overlay-wrapper {
+  display: flex;
+  position: absolute;
+}
+
+.cdk-overlay-pane {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.cdk-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  background: rgb(15 23 42 / 0.38);
+}
+
+.cdk-overlay-backdrop-showing {
+  opacity: 1;
+}
+
+.mat-mdc-dialog-container .mdc-dialog__surface {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.ot-modal-panel {
+  max-width: calc(100vw - 32px) !important;
+}
+
+.ot-modal-panel .mat-mdc-dialog-container {
+  padding: 0;
+}
+
 .mat-mdc-form-field { font-family: 'Inter', sans-serif !important; }
 .mdc-fab--primary { background-color: var(--color-primary-500) !important; }
 

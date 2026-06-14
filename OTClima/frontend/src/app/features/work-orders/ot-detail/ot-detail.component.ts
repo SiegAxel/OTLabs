@@ -68,12 +68,12 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
                   <div class="info-section">
                     <div class="info-label">Cliente</div>
                     <div class="info-value" *ngIf="ot()!.client">
-                      <strong>{{ ot()!.client!.name }}</strong>
-                      <div class="text-sm text-secondary" *ngIf="ot()!.client!.phone">
-                        <span class="material-icons" style="font-size:14px">phone</span> {{ ot()!.client!.phone }}
+                      <strong>{{ ot()!.client!.nombre }}</strong>
+                      <div class="text-sm text-secondary" *ngIf="ot()!.client!.telefono">
+                        <span class="material-icons" style="font-size:14px">phone</span> {{ ot()!.client!.telefono }}
                       </div>
-                      <div class="text-sm text-secondary" *ngIf="ot()!.client!.address">
-                        <span class="material-icons" style="font-size:14px">location_on</span> {{ ot()!.client!.address }}
+                      <div class="text-sm text-secondary" *ngIf="ot()!.client!.direccion">
+                        <span class="material-icons" style="font-size:14px">location_on</span> {{ ot()!.client!.direccion }}
                       </div>
                     </div>
                   </div>

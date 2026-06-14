@@ -68,15 +68,17 @@ export class ApiService {
   }
 
   createClient(data: Partial<Client>) {
+    const now = new Date().toISOString();
     const client: Client = {
       id: this.nextId(this.clients),
-      company_id: 1,
-      name: data.name ?? 'Cliente sin nombre',
+      nombre: data.nombre ?? 'Cliente sin nombre',
       rut: data.rut ?? '',
-      phone: data.phone ?? '',
+      telefono: data.telefono ?? '',
       email: data.email ?? '',
-      address: data.address ?? '',
-      notes: data.notes ?? '',
+      direccion: data.direccion ?? '',
+      notas: data.notas ?? '',
+      created_at: now,
+      updated_at: now,
     };
     this.clients.unshift(client);
     return of(this.clone(client));
@@ -346,7 +348,7 @@ export class ApiService {
     const rows = this.workOrders.map((w) => ({
       id: w.id,
       title: w.title,
-      client: w.client?.name ?? 'Sin cliente',
+      client: w.client?.nombre ?? 'Sin cliente',
       technician: w.technician?.name ?? '',
       status: w.status,
       total: w.quotation?.total ?? 0,

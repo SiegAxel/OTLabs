@@ -22,13 +22,14 @@ export interface Company {
 
 export interface Client {
   id: number;
-  company_id: number;
-  name: string;
+  nombre: string;
   rut?: string;
-  phone?: string;
+  telefono?: string;
   email?: string;
-  address?: string;
-  notes?: string;
+  direccion?: string;
+  notas?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type OtStatus =

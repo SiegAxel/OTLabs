@@ -26,11 +26,11 @@ interface NavItem {
       <!-- Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <div class="logo-mark">
+          <div class="logo-mark" *ngIf="!collapsed()">
             <span class="logo-icon material-icons">ac_unit</span>
-            <span class="logo-text" *ngIf="!collapsed()">OTClima</span>
+            <span class="logo-text">OTClima</span>
           </div>
-          <button class="collapse-btn" (click)="toggleCollapse()" [matTooltip]="collapsed() ? 'Expandir' : 'Colapsar'">
+          <button class="collapse-btn" type="button" (click)="toggleCollapse()" [matTooltip]="collapsed() ? 'Expandir' : 'Colapsar'">
             <span class="material-icons">{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</span>
           </button>
         </div>
@@ -74,7 +74,7 @@ interface NavItem {
         </div>
         <div class="flex gap-2 items-center">
           <span class="text-sm text-secondary">{{ auth.currentUser()?.name }}</span>
-          <button mat-icon-button [matMenuTriggerFor]="userMenu">
+          <button class="mobile-user-btn" type="button" [matMenuTriggerFor]="userMenu" aria-label="Menú de usuario">
             <div class="user-avatar-sm">{{ initials() }}</div>
           </button>
         </div>
@@ -121,6 +121,7 @@ interface NavItem {
       top: 0;
       height: 100vh;
       overflow: hidden;
+      z-index: 20;
     }
 
     .shell.sidebar-collapsed .sidebar { width: 64px; }
@@ -132,10 +133,12 @@ interface NavItem {
       padding: 16px 12px;
       border-bottom: 1px solid rgba(255,255,255,.08);
       height: var(--header-height);
+      min-height: var(--header-height);
     }
 
     .logo-mark {
       display: flex; align-items: center; gap: 10px;
+      min-width: 0;
       overflow: hidden; white-space: nowrap;
     }
 
@@ -153,7 +156,7 @@ interface NavItem {
     }
 
     .collapse-btn {
-      width: 28px; height: 28px;
+      width: 32px; height: 32px;
       background: rgba(255,255,255,.08);
       border: none; border-radius: 6px;
       color: rgba(255,255,255,.6);
@@ -163,16 +166,23 @@ interface NavItem {
       &:hover { background: rgba(255,255,255,.15); }
     }
 
+    .shell.sidebar-collapsed .sidebar-header {
+      justify-content: center;
+      padding: 16px 0;
+    }
+
     .sidebar-nav {
       flex: 1;
       padding: 12px 8px;
       display: flex; flex-direction: column; gap: 2px;
       overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .nav-item {
       display: flex; align-items: center; gap: 12px;
       padding: 10px 12px;
+      min-height: 44px;
       border-radius: 10px;
       color: rgba(255,255,255,.65);
       text-decoration: none;
@@ -186,12 +196,39 @@ interface NavItem {
       &.active { background: var(--color-primary-600); color: white; }
     }
 
-    .nav-label { overflow: hidden; }
+    .shell.sidebar-collapsed .sidebar-nav {
+      align-items: center;
+    }
+
+    .shell.sidebar-collapsed .nav-item {
+      justify-content: center;
+      width: 48px;
+      height: 44px;
+      padding: 0;
+      gap: 0;
+    }
+
+    .nav-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .sidebar-footer {
       padding: 12px;
       border-top: 1px solid rgba(255,255,255,.08);
-      display: flex; align-items: center; gap: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 64px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
     }
 
     .user-avatar {
@@ -203,7 +240,7 @@ interface NavItem {
       font-size: 13px; font-weight: 700; flex-shrink: 0;
     }
 
-    .user-details { flex: 1; overflow: hidden; }
+    .user-details { flex: 1; min-width: 0; overflow: hidden; }
     .user-name  { font-size: 13px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .user-role  { font-size: 11px; color: rgba(255,255,255,.5); }
 
@@ -213,6 +250,7 @@ interface NavItem {
       color: rgba(255,255,255,.5); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       border-radius: 6px;
+      flex-shrink: 0;
       .material-icons { font-size: 18px; }
       &:hover { background: rgba(255,255,255,.08); color: white; }
     }
@@ -232,11 +270,37 @@ interface NavItem {
       align-items: center; justify-content: space-between;
       padding: 0 16px;
       box-shadow: var(--shadow-md);
+      gap: 12px;
     }
 
     .mobile-logo {
       display: flex; align-items: center; gap: 8px;
       font-size: 18px; font-weight: 700; color: white;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .mobile-header .text-sm {
+      max-width: 42vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(255,255,255,.86) !important;
+      line-height: 32px;
+    }
+
+    .mobile-user-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
     .user-avatar-sm {
@@ -268,6 +332,7 @@ interface NavItem {
 
     .bottom-nav-item {
       flex: 1;
+      min-width: 0;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       gap: 2px;
@@ -277,6 +342,12 @@ interface NavItem {
       transition: color .12s;
 
       .material-icons { font-size: 22px; }
+      span:last-child {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       &.active { color: var(--color-primary-600); }
       &:hover { color: var(--color-primary-500); }
     }
