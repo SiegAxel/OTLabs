@@ -6,8 +6,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageShellComponent } from '../../shared/components/page-shell/page-shell.component';
-import { ApiService } from '../../core/services/api.service';
 import { Company } from '../../core/models';
+import { CompanyService } from '../../core/services/company.service';
 
 @Component({
   selector: 'app-company',
@@ -121,10 +121,10 @@ export class CompanyComponent implements OnInit {
     quote_warranty:   [''],
   });
 
-  constructor(private fb: FormBuilder, private api: ApiService, private snack: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private companyService: CompanyService, private snack: MatSnackBar) {}
 
   ngOnInit() {
-    this.api.getCompany().subscribe(c => {
+    this.companyService.getCompany().subscribe(c => {
       this.company.set(c);
       this.form.patchValue(c as any);
     });
@@ -138,7 +138,7 @@ export class CompanyComponent implements OnInit {
 
   save() {
     this.saving.set(true);
-    this.api.updateCompany(this.form.value as any).subscribe({
+    this.companyService.updateCompany(this.form.value as any).subscribe({
       next: c => { this.company.set(c); this.saving.set(false); this.snack.open('Empresa actualizada', '', { duration: 2500 }); },
       error: () => { this.saving.set(false); this.snack.open('Error al guardar', '', { duration: 3000 }); },
     });
@@ -147,7 +147,7 @@ export class CompanyComponent implements OnInit {
   uploadLogo(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.api.uploadLogo(file).subscribe({
+    this.companyService.uploadLogo(file).subscribe({
       next: c => { this.company.set(c); this.snack.open('Logo actualizado', '', { duration: 2500 }); },
       error: () => this.snack.open('Error al subir logo', '', { duration: 3000 }),
     });

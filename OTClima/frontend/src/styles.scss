@@ -173,6 +173,7 @@ a { color: var(--color-primary-600); text-decoration: none; }
 
 .section-header {
   display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
   .subtitle { color: var(--color-text-secondary); font-size: 14px; margin-top: 2px; }
 }
@@ -199,6 +200,12 @@ a { color: var(--color-primary-600); text-decoration: none; }
   }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover td { background: var(--color-primary-50); }
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 // ─── Empty / Loading ─────────────────────────────────────────────────────────
@@ -230,8 +237,7 @@ a { color: var(--color-primary-600); text-decoration: none; }
   z-index: 1000;
 }
 
-.cdk-overlay-container,
-.cdk-global-overlay-wrapper {
+.cdk-overlay-container {
   inset: 0;
   pointer-events: none;
 }
@@ -239,11 +245,23 @@ a { color: var(--color-primary-600); text-decoration: none; }
 .cdk-global-overlay-wrapper {
   display: flex;
   position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .cdk-overlay-pane {
   position: absolute;
   pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  max-width: calc(100vw - 32px) !important;
+  max-height: calc(100vh - 32px);
+}
+
+.cdk-global-overlay-wrapper .cdk-overlay-pane {
+  position: static;
 }
 
 .cdk-overlay-backdrop {
@@ -261,6 +279,18 @@ a { color: var(--color-primary-600); text-decoration: none; }
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+}
+
+.mat-mdc-dialog-container .mdc-dialog__content {
+  color: var(--color-text-secondary);
+  font-family: 'Inter', sans-serif;
+}
+
+.mat-mdc-dialog-container .mdc-dialog__title {
+  color: var(--color-text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  line-height: 1.25;
 }
 
 .ot-modal-panel {
@@ -299,3 +329,26 @@ a { color: var(--color-primary-600); text-decoration: none; }
 }
 
 .divider { border: none; border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
+
+@media (max-width: 768px) {
+  .section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .section-header > a,
+  .section-header > a .btn,
+  .section-header > button {
+    width: 100%;
+  }
+
+  .btn {
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .card {
+    padding: var(--space-4);
+  }
+}

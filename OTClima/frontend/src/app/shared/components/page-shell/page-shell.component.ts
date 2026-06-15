@@ -52,7 +52,7 @@ interface NavItem {
             <div class="user-avatar">{{ initials() }}</div>
             <div class="user-details">
               <div class="user-name">{{ auth.currentUser()?.name }}</div>
-              <div class="user-role">{{ auth.currentUser()?.role === 'admin' ? 'Administrador' : 'Técnico' }}</div>
+              <div class="user-role">{{ roleLabel() }}</div>
             </div>
           </div>
           <button class="logout-btn" (click)="auth.logout()" matTooltip="Cerrar sesión">
@@ -79,7 +79,7 @@ interface NavItem {
           </button>
         </div>
         <mat-menu #userMenu>
-          <a mat-menu-item routerLink="/company"><mat-icon>business</mat-icon>Mi empresa</a>
+          <a *ngIf="auth.isAdmin()" mat-menu-item routerLink="/company"><mat-icon>business</mat-icon>Mi empresa</a>
           <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Salir</button>
         </mat-menu>
       </header>
@@ -91,7 +91,7 @@ interface NavItem {
 
       <!-- Mobile Bottom Nav -->
       <nav class="bottom-nav">
-        <a *ngFor="let item of mobileNavItems"
+        <a *ngFor="let item of visibleMobileNavItems()"
            [routerLink]="item.route"
            routerLinkActive="active"
            class="bottom-nav-item">
@@ -379,12 +379,24 @@ export class PageShellComponent {
     { icon: 'dashboard',    label: 'Dashboard',  route: '/dashboard' },
     { icon: 'assignment',   label: 'OTs',        route: '/work-orders' },
     { icon: 'people',       label: 'Clientes',   route: '/clients' },
-    { icon: 'bar_chart',    label: 'Reportes',   route: '/reports' },
+    { icon: 'bar_chart',    label: 'Reportes',   route: '/reports', adminOnly: true },
   ];
 
   visibleNavItems() {
     const isAdmin = this.auth.isAdmin();
     return this.navItems.filter(i => !i.adminOnly || isAdmin);
+  }
+
+  visibleMobileNavItems() {
+    const isAdmin = this.auth.isAdmin();
+    return this.mobileNavItems.filter(i => !i.adminOnly || isAdmin);
+  }
+
+  roleLabel(): string {
+    const role = this.auth.currentUser()?.role;
+    if (role === 'superadmin') return 'SuperAdmin';
+    if (role === 'admin') return 'Administrador';
+    return 'Técnico';
   }
 
   initials(): string {

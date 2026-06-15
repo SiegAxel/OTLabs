@@ -5,10 +5,10 @@ import { PageShellComponent } from '../../shared/components/page-shell/page-shel
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
 import { StatusChipComponent } from '../../shared/components/status-chip/status-chip.component';
 import { ClpCurrencyPipe } from '../../shared/pipes/clp-currency.pipe';
-import { ApiService } from '../../core/services/api.service';
 import { DashboardSummary } from '../../core/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { Chart, registerables } from 'chart.js';
+import { WorkOrdersService } from '../../core/services/work-orders.service';
 
 Chart.register(...registerables);
 
@@ -127,10 +127,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   summary = signal<DashboardSummary | null>(null);
   loading = signal(true);
 
-  constructor(private api: ApiService, public auth: AuthService) {}
+  constructor(private workOrdersService: WorkOrdersService, public auth: AuthService) {}
 
   ngOnInit() {
-    this.api.getDashboardSummary().subscribe({
+    this.workOrdersService.getDashboardSummary().subscribe({
       next: s => {
         this.summary.set(s);
         this.loading.set(false);

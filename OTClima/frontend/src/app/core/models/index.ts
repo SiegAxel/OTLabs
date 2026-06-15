@@ -1,10 +1,19 @@
 export interface User {
   id: number;
-  company_id: number;
+  company_id?: number | null;
   name: string;
   email: string;
-  role: 'admin' | 'technician';
+  role: UserRole;
   is_active: boolean;
+}
+
+export type UserRole = 'superadmin' | 'admin' | 'technician';
+
+export interface Technician extends User {
+  phone?: string | null;
+  active_ots: number;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface Company {
@@ -22,6 +31,7 @@ export interface Company {
 
 export interface Client {
   id: number;
+  company_id?: number | null;
   nombre: string;
   rut?: string;
   telefono?: string;
@@ -63,6 +73,7 @@ export interface WorkOrder {
 }
 
 export interface QuotationItem {
+  id?: number;
   description: string;
   qty: number;
   unit_price: number;

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { PageShellComponent } from '../../shared/components/page-shell/page-shell.component';
 import { StatusChipComponent } from '../../shared/components/status-chip/status-chip.component';
 import { ClpCurrencyPipe } from '../../shared/pipes/clp-currency.pipe';
-import { ApiService } from '../../core/services/api.service';
+import { WorkOrdersService } from '../../core/services/work-orders.service';
 
 @Component({
   selector: 'app-reports',
@@ -69,10 +69,10 @@ export class ReportsComponent implements OnInit {
   rows    = signal<any[]>([]);
   loading = signal(true);
 
-  constructor(private api: ApiService) {}
+  constructor(private workOrdersService: WorkOrdersService) {}
 
   ngOnInit() {
-    this.api.exportOts().subscribe({
+    this.workOrdersService.exportOts().subscribe({
       next: r => { this.rows.set(r); this.loading.set(false); },
       error: () => this.loading.set(false),
     });

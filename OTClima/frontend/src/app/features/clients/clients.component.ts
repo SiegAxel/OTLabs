@@ -234,8 +234,7 @@ export class ClientsComponent implements OnInit {
     event.stopPropagation();
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Eliminar cliente',
-        message: `Esto eliminará a ${client.nombre}.`,
+        message: `¿Estás seguro de que deseas eliminar el registro de ${client.nombre}?`,
         confirmText: 'Eliminar',
         danger: true,
       },

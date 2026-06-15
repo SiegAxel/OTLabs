@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,8 +10,8 @@ import { PageShellComponent } from '../../../shared/components/page-shell/page-s
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ClpCurrencyPipe } from '../../../shared/pipes/clp-currency.pipe';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
-import { ApiService } from '../../../core/services/api.service';
 import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABELS, Evidence } from '../../../core/models';
+import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
 @Component({
   selector: 'app-ot-detail',
@@ -28,7 +28,7 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
         <a routerLink="/work-orders" class="back-link">
           <span class="material-icons">arrow_back</span> Volver
         </a>
-        <div class="flex items-center gap-4" *ngIf="ot()">
+        <div class="detail-title-row" *ngIf="ot()">
           <h2>#OT-{{ ot()!.id | number:'4.0-0' }} — {{ ot()!.title }}</h2>
           <app-status-chip [status]="ot()!.status"></app-status-chip>
         </div>
@@ -40,22 +40,32 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
 
       <ng-container *ngIf="ot() && !loading()">
         <!-- State stepper -->
-        <div class="stepper card mb-6">
-          <div *ngFor="let step of steps; let i = index; let last = last" class="step-wrapper">
-            <div class="step" [class.done]="isStepDone(step)" [class.current]="ot()!.status === step"
-                 [class.rejected]="ot()!.status === 'rejected' && !isStepDone(step)">
-              <div class="step-circle">
-                <span class="material-icons" *ngIf="isStepDone(step)">check</span>
-                <span *ngIf="!isStepDone(step)">{{ i+1 }}</span>
+        <div class="stepper-shell mb-6">
+          <button type="button" class="stepper-arrow stepper-arrow-left" aria-label="Estado anterior" (click)="scrollStateStepper(-1)">
+            <span class="material-icons">chevron_left</span>
+          </button>
+
+          <div #stateStepper class="stepper card">
+            <div #stepItem *ngFor="let step of steps; let i = index; let last = last" class="step-wrapper">
+              <div class="step" [class.done]="isStepDone(step)" [class.current]="ot()!.status === step"
+                   [class.rejected]="ot()!.status === 'rejected' && !isStepDone(step)">
+                <div class="step-circle">
+                  <span class="material-icons" *ngIf="isStepDone(step)">check</span>
+                  <span *ngIf="!isStepDone(step)">{{ i+1 }}</span>
+                </div>
+                <div class="step-label">{{ statusLabel(step) }}</div>
               </div>
-              <div class="step-label">{{ statusLabel(step) }}</div>
+              <div class="step-line" *ngIf="!last" [class.done]="isStepDone(steps[i+1])"></div>
             </div>
-            <div class="step-line" *ngIf="!last" [class.done]="isStepDone(steps[i+1])"></div>
+            <!-- Rejected badge -->
+            <div #rejectedItem class="rejected-badge" *ngIf="ot()!.status === 'rejected'">
+              <span class="material-icons">cancel</span> OT Rechazada
+            </div>
           </div>
-          <!-- Rejected badge -->
-          <div class="rejected-badge" *ngIf="ot()!.status === 'rejected'">
-            <span class="material-icons">cancel</span> OT Rechazada
-          </div>
+
+          <button type="button" class="stepper-arrow stepper-arrow-right" aria-label="Estado siguiente" (click)="scrollStateStepper(1)">
+            <span class="material-icons">chevron_right</span>
+          </button>
         </div>
 
         <div class="detail-grid">
@@ -109,7 +119,7 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
               <mat-tab label="Cotización">
                 <div class="tab-content">
                   <div *ngIf="ot()!.quotation; else noQuotation">
-                    <div class="quotation-items">
+                    <div class="quotation-items table-scroll">
                       <table class="data-table">
                         <thead>
                           <tr>
@@ -263,6 +273,17 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
         &:hover { color: var(--color-primary-600); }
       }
     }
+    .detail-title-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+    .detail-title-row h2 {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      line-height: 1.25;
+    }
     .spinner {
       width: 36px; height: 36px; border: 3px solid var(--color-border);
       border-top-color: var(--color-primary-500); border-radius: 50%;
@@ -270,11 +291,41 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .stepper {
-      display: flex; align-items: center; flex-wrap: wrap; gap: 0; padding: 20px 24px;
+    .stepper-shell {
       position: relative;
     }
-    .step-wrapper { display: flex; align-items: center; }
+    .stepper-arrow {
+      display: none;
+      position: absolute;
+      top: 50%;
+      z-index: 2;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--color-border);
+      border-radius: 50%;
+      background: var(--color-surface);
+      color: var(--color-primary-600);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-50%);
+    }
+    .stepper-arrow:hover {
+      background: var(--color-primary-50);
+      border-color: var(--color-primary-300);
+    }
+    .stepper-arrow .material-icons {
+      font-size: 22px;
+    }
+    .stepper-arrow-left { left: 6px; }
+    .stepper-arrow-right { right: 6px; }
+
+    .stepper {
+      display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px 0; padding: 20px 24px;
+      position: relative;
+    }
+    .step-wrapper { display: flex; align-items: center; min-width: 0; }
     .step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 80px; }
     .step-circle {
       width: 32px; height: 32px; border-radius: 50%;
@@ -286,7 +337,7 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
     }
     .step.done .step-circle { background: var(--color-success); border-color: var(--color-success); color: white; }
     .step.current .step-circle { background: var(--color-primary-500); border-color: var(--color-primary-500); color: white; }
-    .step-label { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-align: center; }
+    .step-label { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-align: center; white-space: nowrap; }
     .step.done .step-label, .step.current .step-label { color: var(--color-text-primary); }
     .step-line { flex: 1; height: 2px; background: var(--color-border); min-width: 20px; margin: 0 4px; }
     .step-line.done { background: var(--color-success); }
@@ -299,9 +350,10 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
     }
 
     .detail-grid {
-      display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start;
+      display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start;
     }
     @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-main { min-width: 0; }
 
     .tab-content { padding: 20px 0; }
     .info-section { margin-bottom: 16px; }
@@ -309,6 +361,7 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
     .info-value { font-size: 14px; color: var(--color-text-primary); }
     .diagnosis-text { background: var(--color-surface-alt); border-left: 3px solid var(--color-primary-300); padding: 10px 14px; border-radius: 4px; font-size: 14px; }
 
+    .quotation-items .data-table { min-width: 560px; }
     .quotation-totals { margin-top: 16px; background: var(--color-surface-alt); border-radius: var(--radius-md); padding: 16px; }
     .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
     .total-final { font-weight: 700; font-size: 16px; color: var(--color-primary-600); border-top: 2px solid var(--color-primary-200); padding-top: 10px; margin-top: 6px; }
@@ -322,19 +375,80 @@ import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABE
     .detail-actions { padding: 20px; position: sticky; top: 20px; }
 
     .visitTypeLabel { font-size: 13px; }
+    @media (max-width: 700px) {
+      .detail-title-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .stepper-shell {
+        padding: 0 40px;
+      }
+      .stepper-arrow {
+        display: inline-flex;
+      }
+      .stepper-arrow-left { left: 0; }
+      .stepper-arrow-right { right: 0; }
+      .stepper {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 16px 12px 18px;
+        scroll-behavior: smooth;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+      .stepper::-webkit-scrollbar {
+        display: none;
+      }
+      .step-wrapper {
+        flex: 0 0 auto;
+        justify-content: center;
+        scroll-snap-align: center;
+      }
+      .step {
+        align-items: center;
+        min-width: 84px;
+      }
+      .step-label {
+        text-align: center;
+      }
+      .step-line {
+        display: block;
+        min-width: 18px;
+        flex: 0 0 18px;
+      }
+      .rejected-badge {
+        flex: 0 0 auto;
+        margin-left: 0;
+        width: fit-content;
+        scroll-snap-align: center;
+      }
+      .detail-actions {
+        position: static;
+      }
+    }
   `],
 })
-export class OtDetailComponent implements OnInit {
+export class OtDetailComponent implements OnInit, AfterViewChecked {
+  @ViewChild('stateStepper') stateStepper?: ElementRef<HTMLElement>;
+  @ViewChildren('stepItem') stepItems!: QueryList<ElementRef<HTMLElement>>;
+  @ViewChild('rejectedItem') rejectedItem?: ElementRef<HTMLElement>;
+
   ot = signal<WorkOrder | null>(null);
   evidences = signal<Evidence[]>([]);
   loading = signal(true);
+  private lastCenteredStatus = '';
 
   steps = OT_STATUS_STEPS.filter(s => s !== 'rejected');
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private api: ApiService,
+    private workOrdersService: WorkOrdersService,
     private dialog: MatDialog,
     private snack: MatSnackBar,
   ) {}
@@ -344,16 +458,41 @@ export class OtDetailComponent implements OnInit {
     this.load(id);
   }
 
+  ngAfterViewChecked() {
+    this.centerActiveStepOnMobile();
+  }
+
   load(id: number) {
     this.loading.set(true);
-    this.api.getWorkOrder(id).subscribe({
+    this.workOrdersService.getWorkOrder(id).subscribe({
       next: ot => { this.ot.set(ot); this.loading.set(false); this.loadEvidences(id); },
       error: () => { this.loading.set(false); this.router.navigate(['/work-orders']); },
     });
   }
 
   loadEvidences(id: number) {
-    this.api.getEvidences(id).subscribe({ next: ev => this.evidences.set(ev) });
+    this.workOrdersService.getEvidences(id).subscribe({ next: ev => this.evidences.set(ev) });
+  }
+
+  scrollStateStepper(direction: -1 | 1) {
+    const el = this.stateStepper?.nativeElement;
+    if (!el) return;
+    el.scrollBy({ left: direction * Math.max(el.clientWidth * 0.7, 120), behavior: 'smooth' });
+  }
+
+  private centerActiveStepOnMobile() {
+    if (typeof window === 'undefined' || window.innerWidth > 700) return;
+
+    const status = this.ot()?.status;
+    if (!status || status === this.lastCenteredStatus) return;
+
+    const target = status === 'rejected'
+      ? this.rejectedItem?.nativeElement
+      : this.stepItems?.get(this.steps.indexOf(status as OtStatus))?.nativeElement;
+
+    if (!target) return;
+    this.lastCenteredStatus = status;
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 
   isStepDone(step: OtStatus): boolean {
@@ -417,18 +556,21 @@ export class OtDetailComponent implements OnInit {
   }
 
   pdfUrl(): string {
-    return this.ot() ? this.api.getPdfUrl(this.ot()!.id) : '';
+    return this.ot() ? this.workOrdersService.getPdfUrl(this.ot()!.id) : '';
   }
 
   doTransition(newStatus: OtStatus) {
     if (newStatus === 'paid') { this.showPaymentDialog(); return; }
     const label = this.transitionLabel(newStatus);
     const ref = this.dialog.open(ConfirmDialogComponent, {
-      data: { title: '¿Confirmar acción?', message: `${label} — ¿seguro?`, confirmText: label, danger: newStatus === 'rejected' }
+      data: { message: `¿Estás seguro de que deseas ${label.toLowerCase()}?`, confirmText: label, danger: newStatus === 'rejected' }
     });
     ref.afterClosed().subscribe(ok => {
       if (!ok) return;
-      this.api.transitionOt(this.ot()!.id, newStatus).subscribe({
+      const request = newStatus === 'quotation_sent'
+        ? this.workOrdersService.markQuotationSent(this.ot()!.id)
+        : this.workOrdersService.transitionOt(this.ot()!.id, newStatus);
+      request.subscribe({
         next: ot => { this.ot.set(ot); this.snack.open('Estado actualizado', '', { duration: 2500 }); },
         error: () => this.snack.open('Error al cambiar estado', '', { duration: 3000 }),
       });
@@ -440,7 +582,7 @@ export class OtDetailComponent implements OnInit {
     const method = prompt(`Monto a pagar (sugerido: $${amount.toLocaleString('es-CL')})`, String(amount));
     if (!method) return;
     const paymentMethod = prompt('Método (transferencia, efectivo, cheque)', 'transferencia') ?? 'transferencia';
-    this.api.registerPayment(this.ot()!.id, { amount: Number(method), method: paymentMethod }).subscribe({
+    this.workOrdersService.registerPayment(this.ot()!.id, { amount: Number(method), method: paymentMethod }).subscribe({
       next: () => {
         this.snack.open('Pago registrado', '', { duration: 2500 });
         this.load(this.ot()!.id);
@@ -452,7 +594,7 @@ export class OtDetailComponent implements OnInit {
   uploadEvidence(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.api.uploadEvidence(this.ot()!.id, file, '', 'execution').subscribe({
+    this.workOrdersService.uploadEvidence(this.ot()!.id, file, '', 'execution').subscribe({
       next: () => { this.snack.open('Foto subida', '', { duration: 2000 }); this.loadEvidences(this.ot()!.id); },
       error: () => this.snack.open('Error al subir foto', '', { duration: 3000 }),
     });

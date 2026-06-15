@@ -9,8 +9,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { PageShellComponent } from '../../../shared/components/page-shell/page-shell.component';
 import { ClpCurrencyPipe } from '../../../shared/pipes/clp-currency.pipe';
-import { ApiService } from '../../../core/services/api.service';
 import { WorkOrder } from '../../../core/models';
+import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
 @Component({
   selector: 'app-ot-quotation',
@@ -124,12 +124,14 @@ import { WorkOrder } from '../../../core/models';
   `,
   styles: [`
     .back-link { display: inline-flex; align-items: center; gap: 4px; color: var(--color-text-secondary); text-decoration: none; font-size: 14px; .material-icons { font-size: 18px; } &:hover { color: var(--color-primary-600); } }
-    .quotation-layout { display: grid; grid-template-columns: 1fr 260px; gap: 20px; align-items: start; }
+    .quotation-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; }
     @media (max-width: 900px) { .quotation-layout { grid-template-columns: 1fr; } }
+    .quotation-layout > .card { min-width: 0; }
     .items-header { display: grid; grid-template-columns: 1fr 80px 120px 90px 40px; gap: 8px; padding: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--color-primary-600); text-transform: uppercase; }
     .item-row { display: grid; grid-template-columns: 1fr 80px 120px 90px 40px; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .item-row mat-form-field { min-width: 0; }
     .field-sm { width: 80px; } .field-md { width: 120px; }
-    .item-total { font-size: 14px; font-weight: 600; color: var(--color-text-primary); text-align: right; }
+    .item-total { font-size: 14px; font-weight: 600; color: var(--color-text-primary); text-align: right; white-space: nowrap; }
     .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-actions { display: flex; justify-content: flex-end; padding-top: 8px; }
     .summary-panel { position: sticky; top: 20px; }
@@ -138,7 +140,38 @@ import { WorkOrder } from '../../../core/models';
     .s-row.total { font-weight: 700; font-size: 18px; color: var(--color-primary-600); border-top: 2px solid var(--color-primary-200); padding-top: 10px; margin-top: 4px; }
     @media (max-width: 600px) {
       .items-header { display: none; }
-      .item-row { grid-template-columns: 1fr; }
+      .item-row {
+        grid-template-columns: 1fr 44px;
+        gap: 8px 10px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .item-row mat-form-field:first-child {
+        grid-column: 1 / -1;
+      }
+      .field-sm,
+      .field-md {
+        width: 100%;
+      }
+      .item-total {
+        grid-column: 1;
+        text-align: left;
+      }
+      .item-row button {
+        grid-column: 2;
+        grid-row: 2 / span 2;
+        align-self: center;
+      }
+      .form-row-2 {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .form-actions .btn {
+        width: 100%;
+      }
+      .summary-panel {
+        position: static;
+      }
     }
   `],
 })
@@ -158,7 +191,7 @@ export class OtQuotationComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private api: ApiService,
+    private workOrdersService: WorkOrdersService,
     private route: ActivatedRoute,
     private router: Router,
     private snack: MatSnackBar,
@@ -169,7 +202,7 @@ export class OtQuotationComponent implements OnInit {
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.otId.set(id);
-    this.api.getWorkOrder(id).subscribe(ot => {
+    this.workOrdersService.getWorkOrder(id).subscribe(ot => {
       this.ot.set(ot);
       if (ot.quotation) {
         this.hasQuotation.set(true);
@@ -210,14 +243,14 @@ export class OtQuotationComponent implements OnInit {
     return Math.max(this.subtotal() - (this.form.value.discount ?? 0), 0);
   }
 
-  pdfUrl(): string { return this.api.getPdfUrl(this.otId()); }
+  pdfUrl(): string { return this.workOrdersService.getPdfUrl(this.otId()); }
 
   onSubmit() {
     const payload = { ...this.form.value };
     this.loading.set(true);
     const req = this.hasQuotation()
-      ? this.api.updateQuotation(this.otId(), payload as any)
-      : this.api.createQuotation(this.otId(), payload as any);
+      ? this.workOrdersService.updateQuotation(this.otId(), payload as any)
+      : this.workOrdersService.createQuotation(this.otId(), payload as any);
 
     req.subscribe({
       next: () => {

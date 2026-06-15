@@ -9,8 +9,8 @@ import { PageShellComponent } from '../../../shared/components/page-shell/page-s
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { StatusLabelPipe } from '../../../shared/pipes/status-label.pipe';
 import { ClpCurrencyPipe } from '../../../shared/pipes/clp-currency.pipe';
-import { ApiService } from '../../../core/services/api.service';
 import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
+import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
 @Component({
   selector: 'app-ot-list',
@@ -100,6 +100,7 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
   styles: [`
     .filters {
       display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+      min-width: 0;
     }
     .filter-chip {
       padding: 6px 14px; border-radius: 20px;
@@ -108,6 +109,7 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
       color: var(--color-text-secondary);
       font-size: 13px; font-weight: 500; cursor: pointer;
       transition: all .12s;
+      line-height: 1.2;
       &.active { border-color: var(--color-primary-500); background: var(--color-primary-50); color: var(--color-primary-700); }
       &:hover { border-color: var(--color-primary-300); }
     }
@@ -121,7 +123,7 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
       .material-icons { color: var(--color-text-muted); }
     }
     .search-input {
-      border: none; outline: none; flex: 1;
+      border: none; outline: none; flex: 1; min-width: 0;
       font-family: 'Inter', sans-serif; font-size: 14px;
       background: transparent; color: var(--color-text-primary);
     }
@@ -134,25 +136,38 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
 
     .ot-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
       gap: 16px;
     }
     .ot-card-link { text-decoration: none; }
     .ot-card {
       padding: 18px 20px;
       display: flex; flex-direction: column; gap: 8px;
+      min-width: 0;
+      height: 100%;
     }
     .ot-card-header {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px;
     }
-    .ot-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); line-height: 1.3; }
+    .ot-number { white-space: nowrap; }
+    .ot-title {
+      font-size: 15px; font-weight: 600; color: var(--color-text-primary); line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
     .ot-client, .ot-technician {
       display: flex; align-items: center; gap: 6px;
       font-size: 13px; color: var(--color-text-secondary);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       .material-icons { font-size: 15px; }
     }
+    .ot-client .material-icons, .ot-technician .material-icons { flex-shrink: 0; }
     .ot-card-footer {
       display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
       margin-top: 4px; padding-top: 10px;
       border-top: 1px solid var(--color-border);
     }
@@ -168,7 +183,17 @@ import { WorkOrder, OtStatus, OT_STATUS_LABELS } from '../../../core/models';
     }
     @media (max-width: 768px) {
       .fab { display: flex; }
-      section-header button { display: none; }
+      .section-header > a { display: none; }
+    }
+    @media (max-width: 420px) {
+      .ot-card {
+        padding: 16px;
+      }
+      .ot-card-header,
+      .ot-card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   `],
 })
@@ -181,10 +206,10 @@ export class OtListComponent implements OnInit {
 
   statuses: OtStatus[] = ['diagnosis', 'quotation_sent', 'approved', 'in_execution', 'finished', 'paid', 'rejected'];
 
-  constructor(private api: ApiService) {}
+  constructor(private workOrdersService: WorkOrdersService) {}
 
   ngOnInit() {
-    this.api.getWorkOrders().subscribe({
+    this.workOrdersService.getWorkOrders().subscribe({
       next: ots => { this.ots.set(ots); this.applyFilters(); this.loading.set(false); },
       error: () => this.loading.set(false),
     });

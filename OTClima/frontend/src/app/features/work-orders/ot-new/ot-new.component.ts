@@ -8,9 +8,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageShellComponent } from '../../../shared/components/page-shell/page-shell.component';
-import { ApiService } from '../../../core/services/api.service';
 import { ClientsService } from '../../../core/services/clients.service';
-import { Client, User } from '../../../core/models';
+import { TechniciansService } from '../../../core/services/technicians.service';
+import { Client, Technician } from '../../../core/models';
+import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
 @Component({
   selector: 'app-ot-new',
@@ -110,13 +111,14 @@ export class OtNewComponent implements OnInit {
     diagnosis_notes: [''],
   });
   clients    = signal<Client[]>([]);
-  technicians = signal<User[]>([]);
+  technicians = signal<Technician[]>([]);
   loading    = signal(false);
 
   constructor(
     private fb: FormBuilder,
-    private api: ApiService,
+    private workOrdersService: WorkOrdersService,
     private clientsService: ClientsService,
+    private techniciansService: TechniciansService,
     private router: Router,
     private snack: MatSnackBar,
   ) {}
@@ -126,13 +128,16 @@ export class OtNewComponent implements OnInit {
       next: c => this.clients.set(c),
       error: () => this.snack.open('Error al cargar clientes', '', { duration: 3000 }),
     });
-    this.api.getTechnicians().subscribe(t => this.technicians.set(t));
+    this.techniciansService.getTechnicians().subscribe({
+      next: t => this.technicians.set(t.filter(technician => technician.is_active)),
+      error: () => this.snack.open('Error al cargar técnicos', '', { duration: 3000 }),
+    });
   }
 
   onSubmit() {
     if (this.form.invalid) return;
     this.loading.set(true);
-    this.api.createWorkOrder(this.form.value as any).subscribe({
+    this.workOrdersService.createWorkOrder(this.form.value as any).subscribe({
       next: ot => { this.router.navigate(['/work-orders', ot.id]); },
       error: () => { this.loading.set(false); this.snack.open('Error al crear OT', '', { duration: 3000 }); },
     });

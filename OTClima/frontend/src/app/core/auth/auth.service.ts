@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { User } from '../models';
+import { User, UserRole } from '../models';
 
 interface LoginResponse {
   access_token: string;
@@ -15,6 +15,7 @@ interface MeResponse {
   id: number;
   username: string;
   email: string;
+  company_id?: number | null;
   is_active: boolean;
   is_verified: boolean;
   primary_role: string;
@@ -50,10 +51,14 @@ export class AuthService {
   }
 
   loadCurrentUser() {
-    return this.me().subscribe({
+    return this.getCurrentUser().subscribe({
       next: (user) => this.currentUser.set(user),
       error: () => this.logout(),
     });
+  }
+
+  getCurrentUser(): Observable<User> {
+    return this.me().pipe(tap((user) => this.currentUser.set(user)));
   }
 
   logout() {
@@ -75,7 +80,16 @@ export class AuthService {
   }
 
   isAdmin(): boolean {
+    const role = this.currentUser()?.role;
+    return role === 'admin' || role === 'superadmin';
+  }
+
+  isCompanyAdmin(): boolean {
     return this.currentUser()?.role === 'admin';
+  }
+
+  isSuperAdmin(): boolean {
+    return this.currentUser()?.role === 'superadmin';
   }
 
   private me() {
@@ -85,12 +99,19 @@ export class AuthService {
   private mapMeToUser(me: MeResponse): User {
     return {
       id: me.id,
-      company_id: 1,
+      company_id: me.company_id ?? null,
       name: me.username || me.email,
       email: me.email,
-      role: me.primary_role?.toLowerCase() === 'admin' ? 'admin' : 'technician',
+      role: this.normalizeRole(me.primary_role),
       is_active: me.is_active,
     };
+  }
+
+  private normalizeRole(role: string | null | undefined): UserRole {
+    const value = (role ?? '').toLowerCase().replace(/[_\s-]/g, '');
+    if (value === 'superadmin') return 'superadmin';
+    if (value === 'admin') return 'admin';
+    return 'technician';
   }
 
   private clearSession() {
