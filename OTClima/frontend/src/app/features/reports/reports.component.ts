@@ -31,7 +31,7 @@ import { WorkOrdersService } from '../../core/services/work-orders.service';
                 <th>#OT</th>
                 <th>Título</th>
                 <th>Cliente</th>
-                <th>Técnico</th>
+                <th>Responsable</th>
                 <th>Estado</th>
                 <th>Total cotizado</th>
                 <th>Pago recibido</th>
@@ -79,7 +79,7 @@ export class ReportsComponent implements OnInit {
   }
 
   exportCsv() {
-    const headers = ['ID', 'Título', 'Cliente', 'Técnico', 'Estado', 'Total', 'Pagado', 'Fecha'];
+    const headers = ['ID', 'Título', 'Cliente', 'Responsable', 'Estado', 'Total', 'Pagado', 'Fecha'];
     const csvRows = this.rows().map(r =>
       [r.id, `"${r.title}"`, `"${r.client}"`, `"${r.technician}"`,
        r.status, r.total, r.paid_amount, r.created_at.split('T')[0]].join(',')

@@ -22,7 +22,7 @@ import { Technician } from '../../core/models';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, ModalShellComponent],
   template: `
-    <app-modal-shell [title]="data ? 'Editar técnico' : 'Nuevo técnico'">
+    <app-modal-shell [title]="data ? 'Editar usuario operativo' : 'Nuevo técnico'">
       <form modal-body [formGroup]="form" class="tech-form">
         <mat-form-field appearance="outline">
           <mat-label>Nombre completo</mat-label>
@@ -115,8 +115,8 @@ export class TechFormDialog {
     <app-page-shell>
       <div class="section-header">
         <div>
-          <h2>Técnicos</h2>
-          <div class="subtitle">{{ techs().length }} técnicos registrados</div>
+          <h2>Equipo operativo</h2>
+          <div class="subtitle">{{ techs().length }} usuarios asignables a OT</div>
         </div>
         <button class="btn btn-primary" (click)="openForm()">
           <span class="material-icons">add</span> Nuevo técnico
@@ -127,8 +127,8 @@ export class TechFormDialog {
 
       <div class="empty-state" *ngIf="!loading() && techs().length === 0">
         <span class="material-icons">engineering</span>
-        <h3>Sin técnicos</h3>
-        <p>Crea el primer técnico del equipo</p>
+        <h3>Sin usuarios operativos</h3>
+        <p>Crea un técnico o revisa los administradores de la empresa</p>
       </div>
 
       <div class="tech-grid" *ngIf="!loading() && techs().length > 0">
@@ -153,13 +153,13 @@ export class TechFormDialog {
           </div>
 
           <div class="tech-actions">
-            <button class="icon-btn" type="button" title="Editar técnico" (click)="openForm(t)">
+            <button class="icon-btn" type="button" title="Editar usuario operativo" (click)="openForm(t)">
               <span class="material-icons">edit</span>
             </button>
-            <button class="icon-btn" type="button" [title]="t.is_active ? 'Desactivar técnico' : 'Activar técnico'" (click)="toggleActive(t)">
+            <button class="icon-btn" type="button" [title]="t.is_active ? 'Desactivar usuario' : 'Activar usuario'" (click)="toggleActive(t)">
               <span class="material-icons">{{ t.is_active ? 'block' : 'check_circle' }}</span>
             </button>
-            <button class="icon-btn danger" type="button" title="Eliminar técnico" (click)="deactivateTechnician(t)">
+            <button class="icon-btn danger" type="button" title="Eliminar usuario operativo" (click)="deactivateTechnician(t)">
               <span class="material-icons">delete</span>
             </button>
           </div>

@@ -123,6 +123,7 @@ export class ApiService {
       equipment_info: data.equipment_info ?? '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      status_history: [],
     };
     this.workOrders.unshift(workOrder);
     this.evidences[workOrder.id] = [];

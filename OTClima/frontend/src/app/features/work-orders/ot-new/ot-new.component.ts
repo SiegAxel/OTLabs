@@ -12,6 +12,7 @@ import { ClientsService } from '../../../core/services/clients.service';
 import { TechniciansService } from '../../../core/services/technicians.service';
 import { Client, Technician } from '../../../core/models';
 import { WorkOrdersService } from '../../../core/services/work-orders.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-ot-new',
@@ -47,11 +48,12 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Técnico asignado</mat-label>
-            <mat-select formControlName="technician_id">
-              <mat-option [value]="null">Sin asignar</mat-option>
+            <mat-label>Responsable operativo</mat-label>
+            <mat-select formControlName="technician_id" [disabled]="!canAssignResponsable()">
+              <mat-option *ngIf="canAssignResponsable()" [value]="null">Sin asignar</mat-option>
               <mat-option *ngFor="let t of technicians()" [value]="t.id">{{ t.name }}</mat-option>
             </mat-select>
+            <mat-hint *ngIf="!canAssignResponsable()">La OT se asignará a tu usuario</mat-hint>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -103,8 +105,8 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
 export class OtNewComponent implements OnInit {
   form = this.fb.group({
     title:           ['', Validators.required],
-    client_id:       [null, Validators.required],
-    technician_id:   [null],
+    client_id:       this.fb.control<number | null>(null, Validators.required),
+    technician_id:   this.fb.control<number | null>(null),
     equipment_info:  [''],
     visit_type:      ['free'],
     visit_cost:      [0],
@@ -119,6 +121,7 @@ export class OtNewComponent implements OnInit {
     private workOrdersService: WorkOrdersService,
     private clientsService: ClientsService,
     private techniciansService: TechniciansService,
+    public auth: AuthService,
     private router: Router,
     private snack: MatSnackBar,
   ) {}
@@ -128,18 +131,45 @@ export class OtNewComponent implements OnInit {
       next: c => this.clients.set(c),
       error: () => this.snack.open('Error al cargar clientes', '', { duration: 3000 }),
     });
+
+    if (this.auth.currentUser()) {
+      this.loadAssignableUsers();
+      return;
+    }
+
+    this.auth.getCurrentUser().subscribe({
+      next: () => this.loadAssignableUsers(),
+      error: () => this.loadAssignableUsers(),
+    });
+  }
+
+  private loadAssignableUsers() {
     this.techniciansService.getTechnicians().subscribe({
-      next: t => this.technicians.set(t.filter(technician => technician.is_active)),
-      error: () => this.snack.open('Error al cargar técnicos', '', { duration: 3000 }),
+      next: t => this.setAssignableUsers(t),
+      error: () => this.snack.open('Error al cargar responsables operativos', '', { duration: 3000 }),
     });
   }
 
   onSubmit() {
     if (this.form.invalid) return;
     this.loading.set(true);
-    this.workOrdersService.createWorkOrder(this.form.value as any).subscribe({
+    this.workOrdersService.createWorkOrder(this.form.getRawValue() as any).subscribe({
       next: ot => { this.router.navigate(['/work-orders', ot.id]); },
       error: () => { this.loading.set(false); this.snack.open('Error al crear OT', '', { duration: 3000 }); },
     });
+  }
+
+  canAssignResponsable(): boolean {
+    return this.auth.isAdmin();
+  }
+
+  private setAssignableUsers(users: Technician[]) {
+    const activeUsers = users.filter((user) => user.is_active);
+    this.technicians.set(activeUsers);
+
+    if (!this.canAssignResponsable()) {
+      const self = activeUsers[0];
+      this.form.patchValue({ technician_id: self?.id ?? null });
+    }
   }
 }

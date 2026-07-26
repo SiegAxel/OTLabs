@@ -87,22 +87,24 @@ Chart.register(...registerables);
           <h3>OTs recientes</h3>
           <a routerLink="/work-orders" class="text-sm text-primary">Ver todas →</a>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>N°</th><th>Título</th><th>Estado</th><th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let ot of summary()!.recent_ots" style="cursor:pointer"
-                [routerLink]="['/work-orders', ot.id]">
-              <td class="text-muted">#{{ ot.id }}</td>
-              <td class="font-medium">{{ ot.title }}</td>
-              <td><app-status-chip [status]="ot.status"></app-status-chip></td>
-              <td class="text-muted">{{ ot.created_at | date:'dd/MM/yyyy' }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="data-table recent-ots-table">
+            <thead>
+              <tr>
+                <th>N°</th><th>Título</th><th>Estado</th><th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let ot of summary()!.recent_ots" style="cursor:pointer"
+                  [routerLink]="['/work-orders', ot.id]">
+                <td class="text-muted">#{{ ot.id }}</td>
+                <td class="font-medium">{{ ot.title }}</td>
+                <td><app-status-chip [status]="ot.status"></app-status-chip></td>
+                <td class="text-muted">{{ ot.created_at | date:'dd/MM/yyyy' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Loading -->
@@ -116,6 +118,7 @@ Chart.register(...registerables);
     @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
     .mb-6 { margin-bottom: 24px; }
     .mt-4 { margin-top: 16px; }
+    .recent-ots-table { min-width: 560px; }
     .spinner { width: 36px; height: 36px; border: 3px solid var(--color-border); border-top-color: var(--color-primary-500); border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
   `],

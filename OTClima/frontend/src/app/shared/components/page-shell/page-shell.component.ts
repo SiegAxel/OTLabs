@@ -79,7 +79,7 @@ interface NavItem {
           </button>
         </div>
         <mat-menu #userMenu>
-          <a *ngIf="auth.isAdmin()" mat-menu-item routerLink="/company"><mat-icon>business</mat-icon>Mi empresa</a>
+          <a *ngIf="auth.isAdmin()" mat-menu-item routerLink="/company"><mat-icon>business</mat-icon>Mi Negocio</a>
           <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Salir</button>
         </mat-menu>
       </header>
@@ -370,15 +370,16 @@ export class PageShellComponent {
     { icon: 'dashboard',        label: 'Dashboard',   route: '/dashboard' },
     { icon: 'assignment',       label: 'Órd. de Trabajo', route: '/work-orders' },
     { icon: 'people',           label: 'Clientes',    route: '/clients' },
-    { icon: 'engineering',      label: 'Técnicos',    route: '/technicians', adminOnly: true },
+    { icon: 'engineering',      label: 'Equipo',      route: '/technicians', adminOnly: true },
     { icon: 'bar_chart',        label: 'Reportes',    route: '/reports', adminOnly: true },
-    { icon: 'business',         label: 'Mi Empresa',  route: '/company', adminOnly: true },
+    { icon: 'business',         label: 'Mi Negocio',  route: '/company', adminOnly: true },
   ];
 
   mobileNavItems: NavItem[] = [
     { icon: 'dashboard',    label: 'Dashboard',  route: '/dashboard' },
     { icon: 'assignment',   label: 'OTs',        route: '/work-orders' },
     { icon: 'people',       label: 'Clientes',   route: '/clients' },
+    { icon: 'engineering',  label: 'Equipo',     route: '/technicians', adminOnly: true },
     { icon: 'bar_chart',    label: 'Reportes',   route: '/reports', adminOnly: true },
   ];
 

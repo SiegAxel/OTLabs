@@ -53,6 +53,20 @@ export type OtStatus =
 
 export type VisitType = 'free' | 'charged' | 'charged_deductible';
 
+export interface WorkOrderStatusChangedBy {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface WorkOrderStatusMovement {
+  id: number;
+  from_status: OtStatus | null;
+  to_status: OtStatus;
+  created_at: string;
+  changed_by: WorkOrderStatusChangedBy;
+}
+
 export interface WorkOrder {
   id: number;
   company_id: number;
@@ -70,6 +84,7 @@ export interface WorkOrder {
   technician?: User;
   quotation?: Quotation;
   payment?: Payment;
+  status_history: WorkOrderStatusMovement[];
 }
 
 export interface QuotationItem {
@@ -102,12 +117,19 @@ export interface Payment {
   paid_at: string;
 }
 
+export interface EvidenceUploadedBy {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface Evidence {
   id: number;
   description?: string;
   stage: string;
   uploaded_at: string;
   url: string;
+  uploaded_by?: EvidenceUploadedBy | null;
 }
 
 export interface DashboardSummary {

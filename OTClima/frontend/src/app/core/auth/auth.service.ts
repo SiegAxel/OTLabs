@@ -1,11 +1,17 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
+import { Observable, catchError, map, of, switchMap, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User, UserRole } from '../models';
 
 interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+interface RefreshResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
@@ -53,7 +59,7 @@ export class AuthService {
   loadCurrentUser() {
     return this.getCurrentUser().subscribe({
       next: (user) => this.currentUser.set(user),
-      error: () => this.logout(),
+      error: () => this.clearSession(),
     });
   }
 
@@ -71,8 +77,32 @@ export class AuthService {
       .subscribe(() => this.clearSession());
   }
 
+  refreshToken(): Observable<string> {
+    const refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      this.clearSession();
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    return this.http
+      .post<RefreshResponse>(`${environment.apiUrl}/auth/refresh`, {
+        refresh_token: refreshToken,
+      })
+      .pipe(
+        tap((res) => {
+          localStorage.setItem(this.ACCESS_TOKEN_KEY, res.access_token);
+          localStorage.setItem(this.REFRESH_TOKEN_KEY, res.refresh_token);
+        }),
+        map((res) => res.access_token),
+      );
+  }
+
   getToken(): string | null {
     return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  hasRefreshToken(): boolean {
+    return !!localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
   isLoggedIn(): boolean {
@@ -114,7 +144,7 @@ export class AuthService {
     return 'technician';
   }
 
-  private clearSession() {
+  clearSession() {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     this.currentUser.set(null);

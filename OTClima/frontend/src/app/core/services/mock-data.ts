@@ -157,6 +157,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     equipment_info: 'VRV Daikin 60.000 BTU',
     created_at: new Date(now.getTime() - 1 * day).toISOString(),
     updated_at: new Date(now.getTime() - 1 * day).toISOString(),
+    status_history: [],
   },
   {
     id: 2,
@@ -171,6 +172,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     equipment_info: 'Split Midea 12.000 BTU',
     created_at: new Date(now.getTime() - 11 * day).toISOString(),
     updated_at: new Date(now.getTime() - 10 * day).toISOString(),
+    status_history: [],
   },
   {
     id: 3,
@@ -185,6 +187,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     equipment_info: 'Split muro 18.000 BTU',
     created_at: new Date(now.getTime() - 7 * day).toISOString(),
     updated_at: new Date(now.getTime() - 1 * day).toISOString(),
+    status_history: [],
   },
   {
     id: 4,
@@ -199,6 +202,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     equipment_info: '3 equipos split 9.000 BTU',
     created_at: new Date(now.getTime() - 4 * day).toISOString(),
     updated_at: new Date(now.getTime() - 2 * day).toISOString(),
+    status_history: [],
   },
 ];
 

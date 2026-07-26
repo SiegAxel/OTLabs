@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Technician } from '../models';
+import { Technician, UserRole } from '../models';
 import { environment } from '../../../environments/environment';
 
 export interface TechnicianCreatePayload {
@@ -85,6 +85,7 @@ export class TechniciansService {
     const source = technician as Technician & {
       full_name?: string;
       phone_number?: string;
+      primary_role?: string;
       activeOts?: number;
       createdAt?: string;
       updatedAt?: string;
@@ -95,7 +96,7 @@ export class TechniciansService {
       company_id: source.company_id ?? null,
       name: source.name ?? source.full_name ?? '',
       email: source.email ?? '',
-      role: 'technician',
+      role: this.normalizeRole(source.role ?? source.primary_role),
       phone: source.phone ?? source.phone_number ?? '',
       is_active: source.is_active ?? true,
       active_ots: source.active_ots ?? source.activeOts ?? 0,
@@ -123,5 +124,12 @@ export class TechniciansService {
 
     if (data.password?.trim()) payload.password = data.password;
     return payload;
+  }
+
+  private normalizeRole(role: string | null | undefined): UserRole {
+    const value = (role ?? '').toLowerCase().replace(/[_\s-]/g, '');
+    if (value === 'superadmin') return 'superadmin';
+    if (value === 'admin') return 'admin';
+    return 'technician';
   }
 }

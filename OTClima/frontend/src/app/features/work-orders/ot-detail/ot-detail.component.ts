@@ -1,17 +1,27 @@
-import { AfterViewChecked, Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren, signal } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, Inject, OnInit, QueryList, ViewChild, ViewChildren, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { PageShellComponent } from '../../../shared/components/page-shell/page-shell.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ClpCurrencyPipe } from '../../../shared/pipes/clp-currency.pipe';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
-import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABELS, Evidence } from '../../../core/models';
-import { WorkOrdersService } from '../../../core/services/work-orders.service';
+import { ModalShellComponent } from '../../../shared/components/modal-shell/modal-shell.component';
+import { WorkOrder, OtStatus, OT_STATUS_STEPS, VALID_TRANSITIONS, OT_STATUS_LABELS, Evidence, WorkOrderStatusMovement } from '../../../core/models';
+import { PaymentPayload, WorkOrdersService } from '../../../core/services/work-orders.service';
+import { CompanyService } from '../../../core/services/company.service';
+import { CommercialTextOption, CommercialTextsService } from '../../../core/services/commercial-texts.service';
+import { formatMovementDate, movementForStatus, movementTitle } from '../../../core/utils/work-order-history';
+
+type StepperStatus = Exclude<OtStatus, 'rejected'>;
 
 @Component({
   selector: 'app-ot-detail',
@@ -47,8 +57,17 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
           <div #stateStepper class="stepper card">
             <div #stepItem *ngFor="let step of steps; let i = index; let last = last" class="step-wrapper">
-              <div class="step" [class.done]="isStepDone(step)" [class.current]="ot()!.status === step"
-                   [class.rejected]="ot()!.status === 'rejected' && !isStepDone(step)">
+              <div class="step"
+                   [class.done]="isStepDone(step)"
+                   [class.current]="ot()!.status === step"
+                   [class.rejected]="ot()!.status === 'rejected' && !isStepDone(step)"
+                   [class.detail-open]="openedMovementStatus() === step"
+                   tabindex="0"
+                   role="button"
+                   (click)="toggleMovementDetail(step)"
+                   (keydown.enter)="toggleMovementDetail(step)"
+                   (keydown.space)="toggleMovementDetail(step)"
+                   (blur)="closeMovementDetail(step)">
                 <div class="step-circle">
                   <span class="material-icons" *ngIf="isStepDone(step)">check</span>
                   <span *ngIf="!isStepDone(step)">{{ i+1 }}</span>
@@ -58,7 +77,14 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
               <div class="step-line" *ngIf="!last" [class.done]="isStepDone(steps[i+1])"></div>
             </div>
             <!-- Rejected badge -->
-            <div #rejectedItem class="rejected-badge" *ngIf="ot()!.status === 'rejected'">
+            <div #rejectedItem class="rejected-badge"
+                 *ngIf="ot()!.status === 'rejected'"
+                 [class.detail-open]="openedMovementStatus() === 'rejected'"
+                 tabindex="0"
+                 role="button"
+                 (click)="toggleMovementDetail('rejected')"
+                 (keydown.enter)="toggleMovementDetail('rejected')"
+                 (keydown.space)="toggleMovementDetail('rejected')">
               <span class="material-icons">cancel</span> OT Rechazada
             </div>
           </div>
@@ -66,6 +92,68 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
           <button type="button" class="stepper-arrow stepper-arrow-right" aria-label="Estado siguiente" (click)="scrollStateStepper(1)">
             <span class="material-icons">chevron_right</span>
           </button>
+        </div>
+
+        <div class="movement-modal-backdrop" *ngIf="openedMovementStatus()" (click)="openedMovementStatus.set(null)">
+          <div class="movement-detail-modal"
+               role="dialog"
+               aria-modal="true"
+               [attr.data-status]="openedMovementStatus()"
+               (click)="$event.stopPropagation()">
+            <button type="button" class="movement-modal-close" (click)="openedMovementStatus.set(null)" aria-label="Cerrar detalle">
+              <span class="material-icons">close</span>
+            </button>
+            <div class="movement-modal-header">
+              <span class="movement-modal-icon material-icons">{{ historyIcon(openedMovementStatus()!) }}</span>
+              <div>
+                <span class="movement-modal-eyebrow">Etapa seleccionada</span>
+                <h3>{{ statusLabel(openedMovementStatus()!) }}</h3>
+              </div>
+            </div>
+
+            <ng-container *ngIf="selectedMovement() as movement; else noMovement">
+              <div class="movement-transition">{{ movementTitle(movement) }}</div>
+              <div class="movement-modal-user">
+                <span class="material-icons">person</span>
+                <div>
+                  <strong>{{ movement.changed_by.name || 'Usuario no disponible' }}</strong>
+                  <span *ngIf="movement.changed_by.email">{{ movement.changed_by.email }}</span>
+                </div>
+              </div>
+              <div class="movement-modal-date">
+                <span class="material-icons">schedule</span>
+                <time [attr.datetime]="movement.created_at">{{ formatMovementDate(movement.created_at) }}</time>
+              </div>
+            </ng-container>
+
+            <ng-template #noMovement>
+              <div class="movement-modal-empty">
+                <span class="material-icons">history</span>
+                <p>No hay un movimiento registrado para esta etapa.</p>
+              </div>
+            </ng-template>
+
+          </div>
+        </div>
+
+        <div class="evidence-lightbox"
+             *ngIf="selectedEvidence() as evidence"
+             role="dialog"
+             aria-modal="true"
+             aria-label="Vista ampliada de evidencia"
+             (click)="closeEvidencePreview()">
+          <button type="button"
+                  class="evidence-lightbox-close"
+                  aria-label="Cerrar imagen"
+                  (click)="closeEvidencePreview()">
+            <span class="material-icons">close</span>
+          </button>
+          <figure (click)="$event.stopPropagation()">
+            <img [src]="evidence.url"
+                 [alt]="evidence.description || 'Evidencia ampliada'"
+                 onerror="this.src='assets/icons/icon-512x512.png'">
+            <figcaption *ngIf="evidence.description">{{ evidence.description }}</figcaption>
+          </figure>
         </div>
 
         <div class="detail-grid">
@@ -89,7 +177,7 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
                   </div>
 
                   <div class="info-section" *ngIf="ot()!.technician">
-                    <div class="info-label">Técnico asignado</div>
+                    <div class="info-label">Responsable operativo</div>
                     <div class="info-value">{{ ot()!.technician!.name }}</div>
                   </div>
 
@@ -153,24 +241,43 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
                         <span>{{ ot()!.quotation!.total | clp }}</span>
                       </div>
                     </div>
+                    <div class="quotation-commercial-texts"
+                         *ngIf="ot()!.quotation!.conditions || ot()!.quotation!.warranty">
+                      <section class="quotation-commercial-block" *ngIf="ot()!.quotation!.conditions">
+                        <div class="commercial-text-head">
+                          <h4>Condiciones comerciales</h4>
+                          <span class="commercial-origin" [attr.data-origin]="quotationTextOrigin('conditions')">
+                            {{ quotationTextOriginLabel('conditions') }}
+                          </span>
+                        </div>
+                        <div class="commercial-text-content" [innerHTML]="ot()!.quotation!.conditions"></div>
+                      </section>
+                      <section class="quotation-commercial-block" *ngIf="ot()!.quotation!.warranty">
+                        <div class="commercial-text-head">
+                          <h4>Garantía</h4>
+                          <span class="commercial-origin" [attr.data-origin]="quotationTextOrigin('warranties')">
+                            {{ quotationTextOriginLabel('warranties') }}
+                          </span>
+                        </div>
+                        <div class="commercial-text-content" [innerHTML]="ot()!.quotation!.warranty"></div>
+                      </section>
+                    </div>
                     <div class="flex gap-3 mt-4">
-                      <a [routerLink]="['/work-orders', ot()!.id, 'quotation']">
+                      <a [routerLink]="['/work-orders', ot()!.id, 'quotation']" *ngIf="canEditQuotation()">
                         <button class="btn btn-outline btn-sm">
                           <span class="material-icons">edit</span> Editar
                         </button>
                       </a>
-                      <a [href]="pdfUrl()" target="_blank">
-                        <button class="btn btn-primary btn-sm">
+                      <button class="btn btn-primary btn-sm" type="button" (click)="downloadPdf()">
                           <span class="material-icons">picture_as_pdf</span> Descargar PDF
-                        </button>
-                      </a>
+                      </button>
                     </div>
                   </div>
                   <ng-template #noQuotation>
                     <div class="empty-state" style="padding: 32px 0">
                       <span class="material-icons">request_quote</span>
                       <p>Sin cotización aún</p>
-                      <a [routerLink]="['/work-orders', ot()!.id, 'quotation']" *ngIf="canEdit()">
+                      <a [routerLink]="['/work-orders', ot()!.id, 'quotation']" *ngIf="canEditQuotation()">
                         <button class="btn btn-primary btn-sm mt-4">Crear cotización</button>
                       </a>
                     </div>
@@ -180,26 +287,55 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
 
               <!-- Evidence Tab -->
               <mat-tab label="Evidencias ({{ evidences().length }})">
-                <div class="tab-content">
-                  <div class="evidence-grid" *ngIf="evidences().length > 0">
-                    <div *ngFor="let ev of evidences()" class="evidence-item">
-                      <img [src]="ev.url" alt="Evidencia" onerror="this.src='assets/icons/icon-96x96.png'">
-                      <div class="evidence-info">
-                        <span class="text-xs text-muted">{{ ev.stage === 'diagnosis' ? 'Diagnóstico' : 'Ejecución' }}</span>
-                        <span class="text-xs" *ngIf="ev.description">{{ ev.description }}</span>
-                      </div>
+                <div class="tab-content evidence-tab">
+                  <div class="evidence-tab-head">
+                    <div>
+                      <h3>Evidencias de la orden</h3>
+                      <p>La etapa y el responsable se asignan automáticamente al subir cada archivo.</p>
                     </div>
-                  </div>
-                  <div class="empty-state" *ngIf="evidences().length === 0" style="padding:24px 0">
-                    <span class="material-icons">photo_library</span>
-                    <p>Sin evidencias</p>
-                  </div>
-                  <div *ngIf="canEdit()">
-                    <label class="upload-btn btn btn-outline btn-sm" style="cursor:pointer;margin-top:16px">
-                      <span class="material-icons">add_photo_alternate</span> Subir foto
-                      <input type="file" accept="image/*" style="display:none" (change)="uploadEvidence($event)">
+                    <label class="btn btn-outline btn-sm evidence-upload">
+                      <span class="material-icons">add_photo_alternate</span> Subir evidencia
+                      <input type="file" accept="image/*" (change)="uploadEvidence($event)">
                     </label>
                   </div>
+
+                  <div class="stage-evidence-grid evidence-tab-grid" *ngIf="evidences().length; else noEvidences">
+                    <article class="stage-evidence-card"
+                             *ngFor="let evidence of evidences(); trackBy: trackEvidence">
+                      <button type="button"
+                              class="evidence-preview-button"
+                              (click)="openEvidencePreview(evidence)"
+                              [attr.aria-label]="'Ampliar ' + (evidence.description || 'evidencia')">
+                        <img [src]="evidence.url"
+                             [alt]="evidence.description || 'Evidencia de ' + statusLabel(evidence.stage)"
+                             onerror="this.src='assets/icons/icon-96x96.png'">
+                        <span class="evidence-zoom material-icons">zoom_in</span>
+                      </button>
+                      <div class="stage-evidence-info">
+                        <span class="evidence-stage" [attr.data-status]="evidence.stage">
+                          {{ statusLabel(evidence.stage) }}
+                        </span>
+                        <strong *ngIf="evidence.description">{{ evidence.description }}</strong>
+                        <span>Subida por: {{ evidence.uploaded_by?.name || 'Usuario no disponible' }}</span>
+                        <small *ngIf="evidence.uploaded_by?.email">{{ evidence.uploaded_by?.email }}</small>
+                        <time [attr.datetime]="evidence.uploaded_at">{{ formatMovementDate(evidence.uploaded_at) }}</time>
+                      </div>
+                      <button type="button"
+                              class="evidence-delete"
+                              *ngIf="canEdit()"
+                              (click)="deleteEvidence(evidence)"
+                              aria-label="Eliminar evidencia">
+                        <span class="material-icons">delete</span>
+                      </button>
+                    </article>
+                  </div>
+
+                  <ng-template #noEvidences>
+                    <div class="stage-evidences-empty evidence-tab-empty">
+                      <span class="material-icons">photo_library</span>
+                      <p>Aún no hay evidencias en esta orden.</p>
+                    </div>
+                  </ng-template>
                 </div>
               </mat-tab>
 
@@ -326,7 +462,16 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
       position: relative;
     }
     .step-wrapper { display: flex; align-items: center; min-width: 0; }
-    .step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 80px; }
+    .step {
+      display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 80px;
+      position: relative;
+      cursor: pointer;
+      border-radius: 8px;
+      outline: none;
+    }
+    .step:focus-visible {
+      box-shadow: 0 0 0 3px var(--color-primary-100);
+    }
     .step-circle {
       width: 32px; height: 32px; border-radius: 50%;
       border: 2px solid var(--color-border);
@@ -337,6 +482,9 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
     }
     .step.done .step-circle { background: var(--color-success); border-color: var(--color-success); color: white; }
     .step.current .step-circle { background: var(--color-primary-500); border-color: var(--color-primary-500); color: white; }
+    .step.detail-open { background: var(--color-primary-50); box-shadow: 0 0 0 3px var(--color-primary-200); }
+    .step.detail-open .step-circle { transform: scale(1.08); box-shadow: 0 0 0 4px var(--color-primary-100); }
+    .step.detail-open .step-label { color: var(--color-primary-700); font-weight: 700; }
     .step-label { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-align: center; white-space: nowrap; }
     .step.done .step-label, .step.current .step-label { color: var(--color-text-primary); }
     .step-line { flex: 1; height: 2px; background: var(--color-border); min-width: 20px; margin: 0 4px; }
@@ -348,6 +496,7 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
       border-radius: var(--radius-full); font-size: 13px; font-weight: 600;
       .material-icons { font-size: 16px; }
     }
+    .rejected-badge.detail-open { box-shadow: 0 0 0 3px var(--status-rejected-bg); outline: 2px solid var(--status-rejected); }
 
     .detail-grid {
       display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start;
@@ -365,10 +514,16 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
     .quotation-totals { margin-top: 16px; background: var(--color-surface-alt); border-radius: var(--radius-md); padding: 16px; }
     .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
     .total-final { font-weight: 700; font-size: 16px; color: var(--color-primary-600); border-top: 2px solid var(--color-primary-200); padding-top: 10px; margin-top: 6px; }
-
-    .evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
-    .evidence-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border); }
-    .evidence-info { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+    .quotation-commercial-texts { display: grid; gap: 12px; margin-top: 16px; }
+    .quotation-commercial-block { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px 16px; background: var(--color-surface); }
+    .commercial-text-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .commercial-text-head h4 { margin: 0; color: var(--color-text-primary); font-size: 14px; }
+    .commercial-origin { flex-shrink: 0; border-radius: var(--radius-full); padding: 3px 9px; font-size: 11px; font-weight: 700; background: var(--color-primary-100); color: var(--color-primary-700); }
+    .commercial-origin[data-origin="custom"] { background: var(--color-warning-bg); color: #92400e; }
+    .commercial-origin[data-origin="saved"] { background: var(--color-info-bg); color: var(--color-info); }
+    .commercial-text-content { color: var(--color-text-secondary); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+    .commercial-text-content :first-child { margin-top: 0; }
+    .commercial-text-content :last-child { margin-bottom: 0; }
 
     .payment-card { display: flex; align-items: center; gap: 16px; background: var(--color-success-bg); border-radius: 12px; padding: 20px; }
 
@@ -430,6 +585,10 @@ import { WorkOrdersService } from '../../../core/services/work-orders.service';
       .detail-actions {
         position: static;
       }
+      .commercial-text-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   `],
 })
@@ -440,22 +599,59 @@ export class OtDetailComponent implements OnInit, AfterViewChecked {
 
   ot = signal<WorkOrder | null>(null);
   evidences = signal<Evidence[]>([]);
+  selectedEvidence = signal<Evidence | null>(null);
   loading = signal(true);
+  openedMovementStatus = signal<OtStatus | null>(null);
+  conditionOptions = signal<CommercialTextOption[]>([]);
+  warrantyOptions = signal<CommercialTextOption[]>([]);
   private lastCenteredStatus = '';
 
-  steps = OT_STATUS_STEPS.filter(s => s !== 'rejected');
+  steps: StepperStatus[] = OT_STATUS_STEPS.filter((s): s is StepperStatus => s !== 'rejected');
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private workOrdersService: WorkOrdersService,
+    private companyService: CompanyService,
+    private commercialTexts: CommercialTextsService,
     private dialog: MatDialog,
     private snack: MatSnackBar,
   ) {}
 
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.loadCommercialOptions();
     this.load(id);
+  }
+
+  quotationTextOrigin(kind: 'conditions' | 'warranties'): 'default' | 'saved' | 'custom' {
+    const quotation = this.ot()?.quotation;
+    const content = kind === 'conditions' ? quotation?.conditions : quotation?.warranty;
+    const options = kind === 'conditions' ? this.conditionOptions() : this.warrantyOptions();
+    const selected = options.find((option) => this.sameHtml(option.content, content ?? ''));
+    if (!selected) return 'custom';
+    return selected.isDefault ? 'default' : 'saved';
+  }
+
+  quotationTextOriginLabel(kind: 'conditions' | 'warranties'): string {
+    const origin = this.quotationTextOrigin(kind);
+    if (origin === 'default') return 'Predeterminada';
+    if (origin === 'saved') return 'Opción guardada';
+    return 'Personalizada para esta cotización';
+  }
+
+  private loadCommercialOptions() {
+    this.companyService.getCompany().subscribe({
+      next: (company) => {
+        this.conditionOptions.set(this.commercialTexts.activeOptions('conditions', company));
+        this.warrantyOptions.set(this.commercialTexts.activeOptions('warranties', company));
+      },
+    });
+  }
+
+  private sameHtml(a: string, b: string): boolean {
+    const normalize = (value: string) => (value ?? '').replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+    return normalize(a) === normalize(b);
   }
 
   ngAfterViewChecked() {
@@ -488,7 +684,7 @@ export class OtDetailComponent implements OnInit, AfterViewChecked {
 
     const target = status === 'rejected'
       ? this.rejectedItem?.nativeElement
-      : this.stepItems?.get(this.steps.indexOf(status as OtStatus))?.nativeElement;
+      : this.stepItems?.get(this.steps.indexOf(status))?.nativeElement;
 
     if (!target) return;
     this.lastCenteredStatus = status;
@@ -525,6 +721,64 @@ export class OtDetailComponent implements OnInit, AfterViewChecked {
     return OT_STATUS_LABELS[s as OtStatus] ?? s;
   }
 
+  movementDetail(status: OtStatus): string {
+    const movement = movementForStatus(this.ot()?.status_history ?? [], status);
+    if (!movement) return 'No hay un movimiento registrado para este estado.';
+    const user = movement.changed_by?.name || 'Usuario no disponible';
+    return `Movimiento registrado el ${formatMovementDate(movement.created_at)} por ${user}.`;
+  }
+
+  selectedMovement(): WorkOrderStatusMovement | undefined {
+    const status = this.openedMovementStatus();
+    return status ? movementForStatus(this.ot()?.status_history ?? [], status) : undefined;
+  }
+
+  trackEvidence(_: number, evidence: Evidence): number {
+    return evidence.id;
+  }
+
+  openEvidencePreview(evidence: Evidence) {
+    this.selectedEvidence.set(evidence);
+  }
+
+  closeEvidencePreview() {
+    this.selectedEvidence.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  closeEvidencePreviewOnEscape() {
+    this.closeEvidencePreview();
+  }
+
+  movementTitle(movement: WorkOrderStatusMovement): string {
+    return movementTitle(movement);
+  }
+
+  formatMovementDate(value: string): string {
+    return formatMovementDate(value);
+  }
+
+  historyIcon(status: OtStatus): string {
+    const icons: Record<OtStatus, string> = {
+      diagnosis: 'search',
+      quotation_sent: 'send',
+      approved: 'thumb_up',
+      in_execution: 'build',
+      finished: 'done_all',
+      paid: 'payments',
+      rejected: 'cancel',
+    };
+    return icons[status];
+  }
+
+  toggleMovementDetail(status: OtStatus) {
+    this.openedMovementStatus.update((current) => (current === status ? null : status));
+  }
+
+  closeMovementDetail(status: OtStatus) {
+    if (this.openedMovementStatus() === status) this.openedMovementStatus.set(null);
+  }
+
   transitionLabel(t: OtStatus): string {
     const map: Record<OtStatus, string> = {
       quotation_sent: 'Enviar cotización',
@@ -555,10 +809,6 @@ export class OtDetailComponent implements OnInit, AfterViewChecked {
     return '';
   }
 
-  pdfUrl(): string {
-    return this.ot() ? this.workOrdersService.getPdfUrl(this.ot()!.id) : '';
-  }
-
   doTransition(newStatus: OtStatus) {
     if (newStatus === 'paid') { this.showPaymentDialog(); return; }
     const label = this.transitionLabel(newStatus);
@@ -571,32 +821,193 @@ export class OtDetailComponent implements OnInit, AfterViewChecked {
         ? this.workOrdersService.markQuotationSent(this.ot()!.id)
         : this.workOrdersService.transitionOt(this.ot()!.id, newStatus);
       request.subscribe({
-        next: ot => { this.ot.set(ot); this.snack.open('Estado actualizado', '', { duration: 2500 }); },
+        next: () => {
+          this.snack.open('Estado actualizado', '', { duration: 2500 });
+          this.load(this.ot()!.id);
+        },
         error: () => this.snack.open('Error al cambiar estado', '', { duration: 3000 }),
       });
     });
   }
 
   showPaymentDialog() {
-    const amount = this.ot()?.quotation?.total ?? 0;
-    const method = prompt(`Monto a pagar (sugerido: $${amount.toLocaleString('es-CL')})`, String(amount));
-    if (!method) return;
-    const paymentMethod = prompt('Método (transferencia, efectivo, cheque)', 'transferencia') ?? 'transferencia';
-    this.workOrdersService.registerPayment(this.ot()!.id, { amount: Number(method), method: paymentMethod }).subscribe({
-      next: () => {
-        this.snack.open('Pago registrado', '', { duration: 2500 });
-        this.load(this.ot()!.id);
-      },
-      error: () => this.snack.open('Error al registrar pago', '', { duration: 3000 }),
+    const workOrder = this.ot();
+    if (!workOrder) return;
+
+    const ref = this.dialog.open(PaymentDialogComponent, {
+      width: '520px',
+      maxWidth: 'calc(100vw - 32px)',
+      panelClass: 'ot-modal-panel',
+      data: { suggestedAmount: workOrder.quotation?.total ?? 0 } satisfies PaymentDialogData,
+    });
+
+    ref.afterClosed().subscribe((payment?: PaymentPayload) => {
+      if (!payment) return;
+      this.workOrdersService.registerPayment(workOrder.id, payment).subscribe({
+        next: () => {
+          this.snack.open('Pago registrado', '', { duration: 2500 });
+          this.load(workOrder.id);
+        },
+        error: () => this.snack.open('Error al registrar pago', '', { duration: 3000 }),
+      });
     });
   }
 
   uploadEvidence(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
-    this.workOrdersService.uploadEvidence(this.ot()!.id, file, '', 'execution').subscribe({
-      next: () => { this.snack.open('Foto subida', '', { duration: 2000 }); this.loadEvidences(this.ot()!.id); },
+    const workOrderId = this.ot()!.id;
+    this.workOrdersService.uploadEvidence(workOrderId, file, '').subscribe({
+      next: () => {
+        input.value = '';
+        this.snack.open('Evidencia subida', '', { duration: 2000 });
+        this.loadEvidences(workOrderId);
+      },
       error: () => this.snack.open('Error al subir foto', '', { duration: 3000 }),
     });
+  }
+
+  deleteEvidence(evidence: Evidence) {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        message: '¿Deseas eliminar esta evidencia? Esta acción no se puede deshacer.',
+        confirmText: 'Eliminar',
+        danger: true,
+      },
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      const workOrderId = this.ot()!.id;
+      this.workOrdersService.deleteEvidence(evidence.id).subscribe({
+        next: () => {
+          this.snack.open('Evidencia eliminada', '', { duration: 2000 });
+          this.loadEvidences(workOrderId);
+        },
+        error: () => this.snack.open('Error al eliminar evidencia', '', { duration: 3000 }),
+      });
+    });
+  }
+
+  downloadPdf() {
+    const workOrder = this.ot();
+    if (!workOrder) return;
+
+    this.workOrdersService.getPdf(workOrder.id).subscribe({
+      next: (blob) => this.openBlob(blob, `OT-${String(workOrder.id).padStart(4, '0')}.txt`),
+      error: () => this.snack.open('Error al descargar cotización', '', { duration: 3000 }),
+    });
+  }
+
+  private openBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+interface PaymentDialogData {
+  suggestedAmount: number;
+}
+
+@Component({
+  selector: 'app-payment-dialog',
+  standalone: true,
+  imports: [
+    CommonModule, ReactiveFormsModule,
+    MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule,
+    ModalShellComponent, ClpCurrencyPipe,
+  ],
+  template: `
+    <app-modal-shell title="Registrar pago">
+      <form modal-body [formGroup]="form" id="payment-form" (ngSubmit)="submit()">
+        <div class="payment-dialog-intro">
+          <span class="material-icons">payments</span>
+          <div>
+            <strong>Confirma los datos del pago</strong>
+            <p *ngIf="data.suggestedAmount > 0">Total cotizado: {{ data.suggestedAmount | clp }}</p>
+          </div>
+        </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Monto pagado</mat-label>
+          <span matPrefix>$&nbsp;</span>
+          <input matInput type="number" min="1" step="1" formControlName="amount" autocomplete="off">
+          <mat-error *ngIf="form.controls.amount.hasError('required')">Ingresa el monto pagado</mat-error>
+          <mat-error *ngIf="form.controls.amount.hasError('min')">El monto debe ser mayor que cero</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Método de pago</mat-label>
+          <mat-select formControlName="method">
+            <mat-option value="transferencia">Transferencia</mat-option>
+            <mat-option value="efectivo">Efectivo</mat-option>
+            <mat-option value="tarjeta">Tarjeta</mat-option>
+            <mat-option value="cheque">Cheque</mat-option>
+            <mat-option value="otro">Otro</mat-option>
+          </mat-select>
+          <mat-error>Selecciona un método de pago</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Observaciones (opcional)</mat-label>
+          <textarea matInput rows="3" maxlength="500" formControlName="notes"
+                    placeholder="Número de operación, referencia u otra información"></textarea>
+          <mat-hint align="end">{{ form.controls.notes.value?.length ?? 0 }}/500</mat-hint>
+        </mat-form-field>
+      </form>
+
+      <ng-container modal-actions>
+        <button type="button" class="btn btn-ghost" (click)="cancel()">Cancelar</button>
+        <button type="submit" form="payment-form" class="btn btn-primary" [disabled]="form.invalid">
+          <span class="material-icons">check_circle</span> Registrar pago
+        </button>
+      </ng-container>
+    </app-modal-shell>
+  `,
+  styles: [`
+    form { display: flex; flex-direction: column; gap: 4px; }
+    mat-form-field { width: 100%; }
+    .payment-dialog-intro { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--color-success); border-radius: var(--radius-md); background: var(--color-success-bg); }
+    .payment-dialog-intro > .material-icons { color: var(--color-success); font-size: 28px; }
+    .payment-dialog-intro strong { display: block; color: var(--color-text-primary); font-size: 14px; }
+    .payment-dialog-intro p { margin: 2px 0 0; color: var(--color-text-secondary); font-size: 12px; }
+    @media (max-width: 480px) {
+      [modal-actions] { display: flex; flex-direction: column-reverse; width: 100%; }
+      [modal-actions] .btn { width: 100%; }
+    }
+  `],
+})
+export class PaymentDialogComponent {
+  form = this.fb.group({
+    amount: [this.data.suggestedAmount || null, [Validators.required, Validators.min(1)]],
+    method: ['transferencia', Validators.required],
+    notes: ['', Validators.maxLength(500)],
+  });
+
+  constructor(
+    private fb: FormBuilder,
+    private dialogRef: MatDialogRef<PaymentDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: PaymentDialogData,
+  ) {}
+
+  cancel() {
+    this.dialogRef.close();
+  }
+
+  submit() {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    const value = this.form.getRawValue();
+    this.dialogRef.close({
+      amount: Number(value.amount),
+      method: value.method!,
+      notes: value.notes?.trim() || null,
+    } satisfies PaymentPayload);
   }
 }

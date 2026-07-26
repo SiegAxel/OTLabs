@@ -10,6 +10,7 @@ import {
   Quotation,
   WorkOrder,
 } from '../models';
+import { normalizeStatusHistory } from '../utils/work-order-history';
 
 export interface WorkOrderCreatePayload {
   client_id: number;
@@ -113,15 +114,14 @@ export class WorkOrdersService {
       .pipe(map((response) => this.unwrapEvidenceList(response)));
   }
 
-  uploadEvidence(workOrderId: number, file: File, description: string, stage: string): Observable<Evidence> {
+  uploadEvidence(workOrderId: number, file: File, description: string): Observable<Evidence> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('description', description);
-    formData.append('stage', stage);
 
     return this.http
       .post<EvidenceApiResponse>(`${this.baseUrl}/${workOrderId}/evidences`, formData)
-      .pipe(map((response) => this.unwrapResponse(response)));
+      .pipe(map((response) => this.normalizeEvidence(this.unwrapResponse(response))));
   }
 
   deleteEvidence(evidenceId: number): Observable<void> {
@@ -136,6 +136,10 @@ export class WorkOrdersService {
 
   getPdfUrl(workOrderId: number): string {
     return `${this.baseUrl}/${workOrderId}/pdf`;
+  }
+
+  getPdf(workOrderId: number): Observable<Blob> {
+    return this.http.get(this.getPdfUrl(workOrderId), { responseType: 'blob' });
   }
 
   getDashboardSummary(): Observable<DashboardSummary> {
@@ -180,8 +184,26 @@ export class WorkOrdersService {
   }
 
   private unwrapEvidenceList(response: EvidencesApiResponse): Evidence[] {
-    if (Array.isArray(response)) return response;
-    return response.data ?? response.items ?? response.results ?? [];
+    const evidences = Array.isArray(response)
+      ? response
+      : response.data ?? response.items ?? response.results ?? [];
+    const unique = new Map<number, Evidence>();
+    evidences.forEach((evidence) => {
+      if (!unique.has(evidence.id)) unique.set(evidence.id, this.normalizeEvidence(evidence));
+    });
+    return [...unique.values()].sort(
+      (a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime(),
+    );
+  }
+
+  private normalizeEvidence(evidence: Evidence): Evidence {
+    return {
+      ...evidence,
+      description: evidence.description ?? '',
+      stage: evidence.stage === 'execution' ? 'in_execution' : evidence.stage,
+      uploaded_at: evidence.uploaded_at ?? '',
+      uploaded_by: evidence.uploaded_by ?? null,
+    };
   }
 
   private unwrapResponse<T>(response: T | { data: T }): T {
@@ -195,6 +217,7 @@ export class WorkOrdersService {
       equipment_info: workOrder.equipment_info ?? '',
       created_at: workOrder.created_at ?? '',
       updated_at: workOrder.updated_at ?? '',
+      status_history: normalizeStatusHistory(workOrder.status_history),
     };
   }
 

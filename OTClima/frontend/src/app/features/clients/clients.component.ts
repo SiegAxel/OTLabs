@@ -161,7 +161,7 @@ export class ClientFormDialog {
     .search-input { border: none; outline: none; flex: 1; font-family: 'Inter', sans-serif; font-size: 14px; background: transparent; color: var(--color-text-primary); }
     .spinner { width: 36px; height: 36px; border: 3px solid var(--color-border); border-top-color: var(--color-primary-500); border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .clients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
     .client-card { display: flex; align-items: flex-start; gap: 14px; padding: 18px; position: relative; }
     .client-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--color-primary-100); color: var(--color-primary-700); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
     .client-info { flex: 1; min-width: 0; }
