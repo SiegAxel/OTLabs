@@ -22,3 +22,4 @@ jobs:
           password: ${{ secrets.FTP_PASS_BACK }}
           local-dir: ./app-backend/
           server-dir: ./
+          
