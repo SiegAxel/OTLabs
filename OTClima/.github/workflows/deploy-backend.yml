@@ -1,0 +1,24 @@
+name: Deploy Backend Python
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app-backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Subir Backend por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USER_BACK }}
+          password: ${{ secrets.FTP_PASS_BACK }}
+          local-dir: ./app-backend/
+          server-dir: ./
