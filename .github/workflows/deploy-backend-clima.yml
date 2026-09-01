@@ -3,7 +3,7 @@ name: Deploy Backend Python
 on:
   push:
     branches:
-      - pre-prod
+      - main
     paths:
       - 'OTClima/app-backend/**'
 
