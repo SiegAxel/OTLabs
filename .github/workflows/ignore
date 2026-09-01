@@ -1,0 +1,35 @@
+# name: Deploy Frontend PWA
+
+# on:
+#   push:
+#     branches:
+#       - pre-prod
+#     paths:
+#       - 'OTClima/app-frontend/frontend/**'
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Descargar código
+#         uses: actions/checkout@v4
+
+#       - name: Configurar Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+
+#       - name: Compilar Angular PWA
+#         working-directory: ./OTClima/app-frontend/frontend
+#         run: |
+#           npm install
+#           npm run build -- --configuration production
+
+#       - name: Subir Frontend por FTP
+#         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+#         with:
+#           server: ${{ secrets.FTP_SERVER }}
+#           username: ${{ secrets.FTP_USER_FRONT }}
+#           password: ${{ secrets.FTP_PASS_FRONT }}
+#           local-dir: ./OTClima/app-frontend/frontend/dist/frontend/ 
+#           server-dir: ./
