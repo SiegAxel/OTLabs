@@ -1,3 +1,4 @@
 Empresa	Usuario	Email	Password
 Demo Norte SpA	admin_norte	admin@demonorte.local	DemoNorte2026!
 Demo Sur Ltda	admin_sur	admin@demosur.local	DemoSur2026!
+
